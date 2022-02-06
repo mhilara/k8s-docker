@@ -1,0 +1,56 @@
+version: '3.1'
+services:
+  proxy:
+    image: jwilder/nginx-proxy
+    container_name: dns
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    depends_on:
+      - web
+
+  web:
+    image: odoo:latest
+    container_name: odoo
+    depends_on:
+      - db
+    ports:
+      - "8069:8069"
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./dev/config:/etc/odoo
+      - ./dev/addons:/mnt/extra-addons
+    environment:
+      - VIRTUAL_HOST=odooo.cucu.ai
+      - VIRTUAL_PORT=8069
+      - PASSWORD_FILE=/run/secrets/postgresql_password
+    secrets:
+      - postgresql_password
+  db:
+    image: postgres:14.1-alpine
+    container_name: postgresql
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgresql_password
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data/pgdata
+    secrets:
+      - postgresql_password
+
+volumes:
+  dns:
+  odoo-web-data:
+  odoo-db-data:
+
+secrets:
+  postgresql_password:
+    file: odoo_pg_pass
